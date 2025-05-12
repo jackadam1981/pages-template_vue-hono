@@ -33,3 +33,9 @@ coverage
 .wrangler
 .dev.vars*
 wrangler.toml
+
+# backups
+backups
+
+# env
+.env

@@ -10,7 +10,22 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"preview": "npm run build && wrangler pages dev ./dist"
+		"preview": "npm run build && wrangler pages dev ./dist",
+		"db:list": "wrangler d1 list",
+		"db:generate": "drizzle-kit generate",
+		"db:push:local": "wrangler d1 migrations apply treasure-cave --local",
+		"db:push:remote": "wrangler d1 migrations apply treasure-cave --remote",
+		"db:check:local": "wrangler d1 execute DB --local --command=\"SELECT name FROM sqlite_master WHERE type='table'\"",
+		"db:check:remote": "wrangler d1 execute DB --remote --command=\"SELECT name FROM sqlite_master WHERE type='table'\"",
+		"db:backup:local": "wrangler d1 time-travel info DB > ./backups/local-%date:~0,4%%date:~5,2%%date:~8,2%-%time:~0,2%%time:~3,2%%time:~6,2%.bookmark",
+		"db:restore:local": "powershell -Command \"$file = Get-ChildItem ./backups/local-*.bookmark | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($file) { $content = Get-Content $file; $match = $content | Select-String -Pattern 'The current bookmark is ''([^'']*)'''; if ($match) { $bookmark = $match.Matches.Groups[1].Value; Write-Host 'Found bookmark:' $bookmark; wrangler d1 time-travel restore DB --bookmark=$bookmark } else { Write-Host 'No bookmark found in file' } } else { Write-Host 'No backup file found' }\"",
+		"db:export:local": "wrangler d1 export DB --output=./backups/local-export.sql",
+		"db:clear:local": "tsx scripts/clear-all-tables.ts",
+		"db:clear:remote": "tsx scripts/clear-all-tables.ts --remote",
+		"db:studio:local": "npx drizzle-kit studio --config=drizzle.local.config.ts",
+		"db:studio:remote": "npx drizzle-kit studio --config=drizzle.config.ts",
+		"test:env": "tsx scripts/test-env.ts",
+		"setup:env": "tsx scripts/create-env-file.js"
 	},
 	"dependencies": {
 		"vue": "^3.5.13"
@@ -18,9 +33,12 @@
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250510.0",
 		"@vitejs/plugin-vue": "^5.2.3",
+		"better-sqlite3": "^9.4.0",
+		"dotenv": "^16.5.0",
 		"drizzle-kit": "^0.31.1",
 		"drizzle-orm": "^0.43.1",
 		"hono": "^4.7.9",
+		"tsx": "^4.19.4",
 		"vite": "^6.2.4",
 		"vite-plugin-vue-devtools": "^7.7.2",
 		"wrangler": "^4.14.4"

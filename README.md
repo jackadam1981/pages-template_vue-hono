@@ -1,11 +1,117 @@
-# my-vue-app
+# Vue.js + Cloudflare Pages + D1 应用
 
-This template should help get you started developing with Vue 3 in Vite.
+这是一个使用 Vue.js 作为前端，Cloudflare Pages 作为托管平台，D1 作为数据库的应用模板。
 
-## Recommended IDE Setup
+## 特性
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Vue.js 前端框架
+- Cloudflare Pages 作为托管
+- Cloudflare D1 (SQLite) 作为数据库 
+- Hono.js 作为 API 框架
+- Drizzle ORM 用于数据库交互
 
+## 开发说明
+
+### 环境要求
+
+- Node.js 18+
+- npm 9+
+
+### 安装和启动
+
+1. 克隆仓库
+```bash
+git clone <repository-url>
+cd my-vue-app
+```
+
+2. 安装依赖
+```bash
+npm install
+```
+
+3. 本地开发
+```bash
+npm run dev
+```
+
+## 数据库配置
+
+本项目使用 Cloudflare D1 数据库，在本地开发环境下可以使用 SQLite 作为替代。
+
+### 数据库迁移
+
+1. 生成迁移文件
+```bash
+npm run db:generate
+```
+
+2. 应用迁移到本地数据库
+```bash
+npm run db:migrate:local
+```
+
+3. 填充测试数据
+```bash
+npm run db:seed
+```
+
+4. 一步完成设置（生成、迁移、填充）
+```bash
+npm run db:setup
+```
+
+### 部署到 Cloudflare D1
+
+1. 创建 D1 数据库（仅需执行一次）
+```bash
+wrangler d1 create my-database
+```
+
+2. 将数据库 ID 更新到 `wrangler.toml` 文件中
+
+3. 应用迁移到 D1 数据库
+```bash
+npm run db:push:d1
+```
+
+## API 说明
+
+系统包含以下 API 端点：
+
+- `/api` - API 信息
+- `/api/hello` - 测试接口
+- `/api/env` - 环境信息
+- `/api/config` - 系统配置
+- `/api/tables` - 数据库表列表
+- `/api/tables/:tableName/data` - 指定表的数据
+
+## 部署
+
+```bash
+npm run deploy
+```
+
+这将构建前端应用并部署到 Cloudflare Pages。
+
+## 项目结构
+
+```
+.
+├── dist/                # 构建输出目录
+├── drizzle/             # Drizzle 迁移文件
+├── functions/           # Cloudflare Pages 函数
+│   └── api/             # API 路由
+├── public/              # 静态资源
+├── scripts/             # 脚本文件
+├── src/                 # 源代码
+│   ├── assets/          # 资源文件
+│   ├── components/      # Vue 组件
+│   └── db/              # 数据库相关
+│       └── schema/      # 数据库模式定义
+├── wrangler.toml        # Cloudflare Wrangler 配置
+└── package.json         # 项目配置
+```
 
 ## pages要求
 node:18.17.1
@@ -66,3 +172,12 @@ This will download the latest Visual C++ Redistributable for x64 systems
 在 Cloudflare Dashboard 的 Pages 设置中配置数据库绑定
 使用 wrangler pages deploy 部署
 生产环境的数据库 ID 完全通过 Dashboard 管理
+
+
+.dev.vars 文件与 .env 文件略有不同:
+.dev.vars - 这是 Cloudflare Wrangler 使用的本地开发环境变量文件，专门用于 Wrangler 的本地开发服务器。当您运行 wrangler dev 或 wrangler pages dev 命令时，Wrangler 会读取这个文件中的环境变量。
+.env - 这是一个更通用的环境变量文件，被 dotenv 库读取，用于 Node.js 应用程序。您的 drizzle.config.ts 文件导入了 dotenv/config，所以它会从这个文件中读取变量。
+您在不同情况下需要两个文件:
+当您使用 Drizzle Kit 工具（如 drizzle-kit studio）时，它会读取 .env 文件
+当您使用 Wrangler 命令（如 wrangler pages dev）时，它会读取 .dev.vars 文件
+所以两个文件都有各自的用途，取决于您使用的工具。建议您保留 .dev.vars 文件，并根据需要更新其中的内容。
