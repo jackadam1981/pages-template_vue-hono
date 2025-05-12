@@ -1,0 +1,7 @@
+name = "my-vue-app"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-database"
+database_id = "your-database-id" 

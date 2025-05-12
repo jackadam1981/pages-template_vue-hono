@@ -58,7 +58,11 @@ Download and install the latest Microsoft Visual C++ Redistributable package. Yo
 Visit: https://aka.ms/vs/17/release/vc_redist.x64.exe
 This will download the latest Visual C++ Redistributable for x64 systems
 
-
-
-		"node": "18.17.1",
-		"npm": "9.6.7"
+本地开发：
+开发者复制 wrangler.example.toml 为 wrangler.toml
+填入本地开发用的数据库 ID
+使用 wrangler dev 进行本地开发
+生产部署：
+在 Cloudflare Dashboard 的 Pages 设置中配置数据库绑定
+使用 wrangler pages deploy 部署
+生产环境的数据库 ID 完全通过 Dashboard 管理
