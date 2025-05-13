@@ -14,6 +14,10 @@
 
 		"test:env": "tsx scripts/test-env.ts",
 		"setup:env": "tsx scripts/create-env-file.js",
+		"test:r2": "node scripts/test-r2.js",
+		"test:r2:prod": "node scripts/test-r2.js --production",
+		"test:r2:download": "node scripts/test-r2.js --download",
+		"test:r2:delete": "node scripts/test-r2.js --delete",
 
 		"db:list": "wrangler d1 list",
 		"db:generate": "drizzle-kit generate",
@@ -49,8 +53,12 @@
 		"kv:local:set:version": "npx wrangler kv key put --preview false --local --binding=APP_KV app:version \"1.0.0\"",
 		"kv:local:set:config": "npx wrangler kv key put --preview false --local --binding=APP_KV app:config \"{\\\"name\\\":\\\"My Vue App\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"updated\\\":\\\"2024-05-13\\\"}\" --metadata=\"{\\\"contentType\\\":\\\"application/json\\\"}\"",
 		"kv:local:set:temp": "npx wrangler kv key put --preview false --local --binding=APP_KV temp \"临时值\" --ttl=3600",
-		"kv:local:list-keys": "npx wrangler kv key list --preview false --local --binding=APP_KV"
+		"kv:local:list-keys": "npx wrangler kv key list --preview false --local --binding=APP_KV",
 
+		"r2:create-bucket": "npx wrangler r2 bucket create app-files",
+		"r2:create-preview-bucket": "npx wrangler r2 bucket create app-files-dev",
+		"r2:list-buckets": "npx wrangler r2 bucket list",
+		"r2:local:info": "echo \"本地R2存储位置: .wrangler/state/r2\""
 	},
 	"dependencies": {
 		"vue": "^3.5.13"

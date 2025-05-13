@@ -1,0 +1,17 @@
+{
+  "name": "R2测试",
+  "version": "1.0.0",
+  "features": [
+    "存储",
+    "检索",
+    "删除"
+  ],
+  "settings": {
+    "maxSize": 52428800,
+    "allowedTypes": [
+      "image/jpeg",
+      "image/png",
+      "application/pdf"
+    ]
+  }
+}

@@ -6,15 +6,16 @@ import { prettyJSON } from 'hono/pretty-json'
 import { getD1DB } from '../../src/db'
 import * as schema from '../../src/db/schema'
 import { desc } from 'drizzle-orm'
-import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
+import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types'
 
 // 创建一个基于 /api 路径的应用
 const app = new Hono().basePath('/api')
 
 // 定义Cloudflare环境类型
 interface Env {
-  DB: D1Database;
-  APP_KV: KVNamespace; // 添加KV命名空间
+  DB: D1Database; // D1数据库
+  APP_KV: KVNamespace; // KV命名空间
+  APP_BUCKET: R2Bucket; // R2存储桶
 }
 
 // 全局中间件
@@ -355,6 +356,245 @@ app.get('/kv-value/:key', async (c) => {
   }
 });
 
+// R2 API - 列出所有对象
+app.get('/files', async (c) => {
+  try {
+    const env = c.env as Env;
+    
+    if (!env.APP_BUCKET) {
+      return c.json({
+        success: false,
+        error: 'R2存储桶绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 列出存储桶中的所有对象
+    const objects = await env.APP_BUCKET.list();
+    
+    return c.json({
+      success: true,
+      files: objects.objects.map(obj => ({
+        name: obj.key,
+        size: obj.size,
+        uploaded: obj.uploaded,
+        etag: obj.etag,
+        httpEtag: obj.httpEtag
+      })),
+      count: objects.objects.length,
+      truncated: objects.truncated,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('获取R2对象列表失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取R2对象列表失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+// R2 API - 获取对象元数据
+app.on('HEAD', '/files/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const env = c.env as Env;
+    
+    if (!env.APP_BUCKET) {
+      return c.json({
+        success: false,
+        error: 'R2存储桶绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 获取对象元数据
+    const object = await env.APP_BUCKET.head(key);
+    
+    if (!object) {
+      return c.json({
+        success: false,
+        error: `文件 "${key}" 不存在`
+      }, 404);
+    }
+    
+    // 设置响应头部
+    c.header('ETag', object.httpEtag);
+    c.header('Last-Modified', object.uploaded.toUTCString());
+    c.header('Content-Length', object.size.toString());
+    if (object.httpMetadata?.contentType) {
+      c.header('Content-Type', object.httpMetadata.contentType);
+    }
+    
+    return c.newResponse(null, { status: 200 });
+  } catch (error) {
+    console.error('获取R2对象元数据失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取R2对象元数据失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+// R2 API - 获取对象(下载文件)
+app.get('/files/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const env = c.env as Env;
+    
+    if (!env.APP_BUCKET) {
+      return c.json({
+        success: false,
+        error: 'R2存储桶绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 获取对象
+    const object = await env.APP_BUCKET.get(key);
+    
+    if (!object) {
+      return c.json({
+        success: false,
+        error: `文件 "${key}" 不存在`
+      }, 404);
+    }
+    
+    // 如果客户端请求JSON格式的元数据，返回JSON响应
+    const acceptHeader = c.req.header('Accept');
+    if (acceptHeader && acceptHeader.includes('application/json')) {
+      return c.json({
+        success: true,
+        key,
+        size: object.size,
+        etag: object.etag,
+        httpEtag: object.httpEtag,
+        uploaded: object.uploaded,
+        metadata: object.httpMetadata,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // 否则返回实际文件内容
+    // 使用arrayBuffer()解决ReadableStream类型不兼容问题
+    const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
+    
+    // 读取对象为ArrayBuffer
+    const arrayBuffer = await object.arrayBuffer();
+    
+    // 创建响应
+    return c.body(arrayBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'ETag': object.httpEtag,
+        'Last-Modified': object.uploaded.toUTCString(),
+        'Content-Length': object.size.toString(),
+        'Cache-Control': 'public, max-age=31536000' // 1年缓存，可按需调整
+      }
+    });
+  } catch (error) {
+    console.error('获取R2对象失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取R2对象失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+// R2 API - 上传对象
+app.put('/files/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const env = c.env as Env;
+    
+    if (!env.APP_BUCKET) {
+      return c.json({
+        success: false,
+        error: 'R2存储桶绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 检查内容类型和请求体
+    const contentType = c.req.header('Content-Type');
+    if (!contentType) {
+      return c.json({
+        success: false,
+        error: '缺少Content-Type头部'
+      }, 400);
+    }
+    
+    // 获取请求体
+    const data = await c.req.arrayBuffer();
+    if (data.byteLength === 0) {
+      return c.json({
+        success: false,
+        error: '请求体为空'
+      }, 400);
+    }
+    
+    // 设置元数据
+    const httpMetadata = {
+      contentType,
+      // 可以添加更多自定义元数据
+      uploadedBy: c.req.header('X-Uploaded-By') || 'api',
+      uploadedAt: new Date().toISOString()
+    };
+    
+    // 上传对象
+    const result = await env.APP_BUCKET.put(key, data, {
+      httpMetadata
+    });
+    
+    return c.json({
+      success: true,
+      key,
+      etag: result.etag,
+      size: data.byteLength,
+      contentType,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('上传R2对象失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '上传R2对象失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+// R2 API - 删除对象
+app.delete('/files/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const env = c.env as Env;
+    
+    if (!env.APP_BUCKET) {
+      return c.json({
+        success: false,
+        error: 'R2存储桶绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 删除对象
+    await env.APP_BUCKET.delete(key);
+    
+    return c.json({
+      success: true,
+      key,
+      message: `文件 "${key}" 已删除`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('删除R2对象失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '删除R2对象失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
 // API 信息
 app.get('/', (c) => {
   return c.json({
@@ -367,11 +607,20 @@ app.get('/', (c) => {
       '/api/system-config',
       '/api/system-logs',
       '/api/kv-keys',
-      '/api/kv-value/:key'
+      '/api/kv-value/:key',
+      '/api/files',
+      '/api/files/:key'
     ],
     kv_operations: {
       list_keys: 'GET /api/kv-keys - 列出所有KV键',
       get_value: 'GET /api/kv-value/:key - 获取指定键的值'
+    },
+    r2_operations: {
+      list_files: 'GET /api/files - 列出存储桶中的所有文件',
+      get_file: 'GET /api/files/:key - 下载文件',
+      get_metadata: 'HEAD /api/files/:key - 获取文件元数据',
+      upload_file: 'PUT /api/files/:key - 上传文件',
+      delete_file: 'DELETE /api/files/:key - 删除文件'
     },
     timestamp: new Date().toISOString()
   })
