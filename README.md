@@ -181,3 +181,35 @@ This will download the latest Visual C++ Redistributable for x64 systems
 当您使用 Drizzle Kit 工具（如 drizzle-kit studio）时，它会读取 .env 文件
 当您使用 Wrangler 命令（如 wrangler pages dev）时，它会读取 .dev.vars 文件
 所以两个文件都有各自的用途，取决于您使用的工具。建议您保留 .dev.vars 文件，并根据需要更新其中的内容。
+
+
+当您运行 wrangler pages dev 或 wrangler dev 命令时：
+自动使用 preview_id：
+Wrangler 会自动使用 wrangler.toml 中配置的 preview_id 对应的 KV 命名空间
+它不会使用生产环境的 KV ID（即 id 字段指定的）
+这是 Wrangler 的设计决策，目的是防止开发环境意外修改生产环境数据
+无法在开发模式直接使用生产 KV：
+没有内置的方法直接让 wrangler dev 使用生产环境的 KV ID
+这是有意为之，作为一种安全措施
+
+KV说明
+"kv:list-namespaces"  列出所有KV命名空间
+
+对于KV命令，实际上有三个不同的操作环境：
+本地环境 (--local):
+在本地.wrangler/state目录中操作数据
+用于本地开发和测试
+命令: kv:local:*
+预览环境 (--preview):
+使用预览KV命名空间ID (preview_id)
+在Cloudflare云端，但为开发用途保留
+命令: kv:preview:*
+生产环境 (--preview false --remote):
+使用生产KV命名空间ID (id)
+Cloudflare云端的真正生产数据
+命令: kv:deployset:* 和 kv:deploy:*
+现在我已经添加了所有三种环境的命令，并使用了正确的标志组合：
+本地环境: --preview false --local --binding=APP_KV
+预览环境: --preview --binding=APP_KV
+生产环境: --preview false --remote --binding=APP_KV
+这样就可以明确区分所有操作环境，避免意外修改错误的数据。特别是生产环境命令现在添加了--remote标志，确保操作的是Cloudflare云端的KV存储，而不是本地实例。
