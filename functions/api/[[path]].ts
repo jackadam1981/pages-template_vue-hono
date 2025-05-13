@@ -6,7 +6,7 @@ import { prettyJSON } from 'hono/pretty-json'
 import { getD1DB } from '../../src/db'
 import * as schema from '../../src/db/schema'
 import { desc } from 'drizzle-orm'
-import type { D1Database } from '@cloudflare/workers-types'
+import type { D1Database, KVNamespace } from '@cloudflare/workers-types'
 
 // 创建一个基于 /api 路径的应用
 const app = new Hono().basePath('/api')
@@ -14,6 +14,7 @@ const app = new Hono().basePath('/api')
 // 定义Cloudflare环境类型
 interface Env {
   DB: D1Database;
+  APP_KV: KVNamespace; // 添加KV命名空间
 }
 
 // 全局中间件
@@ -262,6 +263,98 @@ app.get('/system-logs', async (c) => {
   }
 });
 
+// KV API - 列出所有键
+app.get('/kv-keys', async (c) => {
+  try {
+    const env = c.env as Env;
+    
+    if (!env.APP_KV) {
+      return c.json({
+        success: false,
+        error: 'KV绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 列出所有键
+    try {
+      const list = await env.APP_KV.list();
+      
+      return c.json({
+        success: true,
+        keys: list.keys,
+        count: list.keys.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (listError) {
+      return c.json({
+        success: false,
+        error: '列出键失败，请确保在wrangler.toml中设置了正确的KV配置',
+        originalError: listError instanceof Error ? listError.message : String(listError)
+      }, 400);
+    }
+  } catch (error) {
+    console.error('获取KV键列表失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取KV键列表失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+// KV API - 获取键值
+app.get('/kv-value/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const env = c.env as Env;
+    
+    if (!env.APP_KV) {
+      return c.json({
+        success: false,
+        error: 'KV绑定不可用，请检查wrangler.toml配置'
+      }, 500);
+    }
+    
+    // 从KV读取值
+    const value = await env.APP_KV.get(key);
+    
+    if (value === null) {
+      return c.json({
+        success: false,
+        error: `键 "${key}" 不存在`,
+      }, 404);
+    }
+    
+    // 尝试解析JSON
+    try {
+      const jsonValue = JSON.parse(value);
+      return c.json({
+        success: true,
+        key,
+        value: jsonValue,
+        isJson: true,
+        timestamp: new Date().toISOString()
+      });
+    } catch {
+      // 返回原始值
+      return c.json({
+        success: true,
+        key,
+        value,
+        isJson: false,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('获取KV值失败:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '获取KV值失败',
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
 // API 信息
 app.get('/', (c) => {
   return c.json({
@@ -272,8 +365,14 @@ app.get('/', (c) => {
       '/api/tables',
       '/api/table-data/:objectName',
       '/api/system-config',
-      '/api/system-logs'
+      '/api/system-logs',
+      '/api/kv-keys',
+      '/api/kv-value/:key'
     ],
+    kv_operations: {
+      list_keys: 'GET /api/kv-keys - 列出所有KV键',
+      get_value: 'GET /api/kv-value/:key - 获取指定键的值'
+    },
     timestamp: new Date().toISOString()
   })
 })

@@ -182,18 +182,14 @@ This will download the latest Visual C++ Redistributable for x64 systems
 当您使用 Wrangler 命令（如 wrangler pages dev）时，它会读取 .dev.vars 文件
 所以两个文件都有各自的用途，取决于您使用的工具。建议您保留 .dev.vars 文件，并根据需要更新其中的内容。
 
+KV说明
+
+"kv:list-namespaces"  列出所有 云端 KV命名空间
 
 当您运行 wrangler pages dev 或 wrangler dev 命令时：
-自动使用 preview_id：
-Wrangler 会自动使用 wrangler.toml 中配置的 preview_id 对应的 KV 命名空间
-它不会使用生产环境的 KV ID（即 id 字段指定的）
-这是 Wrangler 的设计决策，目的是防止开发环境意外修改生产环境数据
-无法在开发模式直接使用生产 KV：
-没有内置的方法直接让 wrangler dev 使用生产环境的 KV ID
-这是有意为之，作为一种安全措施
+自动使用 预览环境 (--preview):
 
-KV说明
-"kv:list-namespaces"  列出所有KV命名空间
+
 
 对于KV命令，实际上有三个不同的操作环境：
 本地环境 (--local):
