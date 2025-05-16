@@ -64,9 +64,16 @@
 
 
 		"r2:create-bucket": "npx wrangler r2 bucket create app-files",
+		"r2:delete-bucket": "npx wrangler r2 bucket delete app-files",
+		"r2:info-bucket": "npx wrangler r2 bucket info app-files",
+
 		"r2:create-preview-bucket": "npx wrangler r2 bucket create app-files-dev",
-		"r2:list-buckets": "npx wrangler r2 bucket list",
-		"r2:local:info": "echo \"本地R2存储位置: .wrangler/state/r2\""
+		"r2:delete-preview-bucket": "npx wrangler r2 bucket delete app-files-dev",
+		"r2:info-preview-bucket": "npx wrangler r2 bucket info app-files-dev",
+
+		"r2:create-production-bucket": "npx wrangler r2 bucket create app-files-prod",
+		"r2:delete-production-bucket": "npx wrangler r2 bucket delete app-files-prod",
+		"r2:info-production-bucket": "npx wrangler r2 bucket info app-files-prod"
 	},
 	"dependencies": {
 		"vue": "^3.5.13"
