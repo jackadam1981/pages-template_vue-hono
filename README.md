@@ -1,12 +1,16 @@
-# Vue.js + Cloudflare Pages + D1 应用
+# Vue.js + Cloudflare Pages应用
 
-这是一个使用 Vue.js 作为前端，Cloudflare Pages 作为托管平台，D1 作为数据库的应用模板。
+这是一个使用 Vue.js 作为前端，Cloudflare Pages 作为托管平台的应用模板。
+
+添加了D1 R2 KV存储的支持。
 
 ## 特性
 
 - Vue.js 前端框架
 - Cloudflare Pages 作为托管
-- Cloudflare D1 (SQLite) 作为数据库 
+- Cloudflare D1 (SQLite) 作为数据库
+- Cloudflare KV (键值对) 存储应用数据
+- Cloudflare R2 (文件和对象存储) 存储图片，文件
 - Hono.js 作为 API 框架
 - Drizzle ORM 用于数据库交互
 
@@ -20,17 +24,20 @@
 ### 安装和启动
 
 1. 克隆仓库
+
 ```bash
 git clone <repository-url>
 cd my-vue-app
 ```
 
 2. 安装依赖
+
 ```bash
 npm install
 ```
 
 3. 本地开发
+
 ```bash
 npm run dev
 ```
@@ -42,21 +49,25 @@ npm run dev
 ### 数据库迁移
 
 1. 生成迁移文件
+
 ```bash
 npm run db:generate
 ```
 
 2. 应用迁移到本地数据库
+
 ```bash
 npm run db:migrate:local
 ```
 
 3. 填充测试数据
+
 ```bash
 npm run db:seed
 ```
 
 4. 一步完成设置（生成、迁移、填充）
+
 ```bash
 npm run db:setup
 ```
@@ -64,13 +75,14 @@ npm run db:setup
 ### 部署到 Cloudflare D1
 
 1. 创建 D1 数据库（仅需执行一次）
+
 ```bash
 wrangler d1 create my-database
 ```
 
 2. 将数据库 ID 更新到 `wrangler.toml` 文件中
-
 3. 应用迁移到 D1 数据库
+
 ```bash
 npm run db:push:d1
 ```
@@ -114,12 +126,11 @@ npm run deploy
 ```
 
 ## pages要求
+
 node:18.17.1
 npm:9.6.7
 
-
 npm install hono --save-dev
-
 
 ## Customize configuration
 
@@ -143,11 +154,9 @@ npm run dev
 npm run build
 ```
 
-
 https://developers.cloudflare.com/pages/framework-guides/deploy-a-vue-site/
 
 npm create cloudflare@latest -- my-vue-app --framework=vue --platform=pages
-
 
 git config --global user.email "jackadam1981@hotmail.com"
 git config --global user.name "jack"
@@ -173,7 +182,6 @@ This will download the latest Visual C++ Redistributable for x64 systems
 使用 wrangler pages deploy 部署
 生产环境的数据库 ID 完全通过 Dashboard 管理
 
-
 .dev.vars 文件与 .env 文件略有不同:
 .dev.vars - 这是 Cloudflare Wrangler 使用的本地开发环境变量文件，专门用于 Wrangler 的本地开发服务器。当您运行 wrangler dev 或 wrangler pages dev 命令时，Wrangler 会读取这个文件中的环境变量。
 .env - 这是一个更通用的环境变量文件，被 dotenv 库读取，用于 Node.js 应用程序。您的 drizzle.config.ts 文件导入了 dotenv/config，所以它会从这个文件中读取变量。
@@ -188,8 +196,6 @@ KV说明
 
 当您运行 wrangler pages dev 或 wrangler dev 命令时：
 自动使用 预览环境 (--preview):
-
-
 
 对于KV命令，实际上有三个不同的操作环境：
 本地环境 (--local):

@@ -29,16 +29,28 @@
 		"db:local:import": "wrangler d1 execute DB --local --file=./backups/local-export.sql",
   		"db:local:studio": "npx drizzle-kit studio --config=drizzle.local.config.ts",
 
-		"db:remote:push": "wrangler d1 migrations apply treasure-cave --remote",
-		"db:remote:check": "wrangler d1 execute DB --remote --command=\"SELECT name FROM sqlite_master WHERE type='table'\"",
-		"db:remote:export": "wrangler d1 export DB --remote --output=./backups/remote-export.sql",
-		"db:remote:import": "wrangler d1 execute DB --remote --file=./backups/remote-export.sql",
-		"db:remote:clear": "tsx scripts/clear-all-tables.ts --remote",
+		"db:preview:push": "wrangler d1 migrations apply treasure-cave-preview --env preview --remote",
+		"db:preview:check": "wrangler d1 execute DB --env preview --command=\"SELECT name FROM sqlite_master WHERE type='table'\" --remote",
+		"db:preview:export": "wrangler d1 export DB --env preview --output=./backups/preview-export.sql --remote",
+		"db:preview:import": "wrangler d1 execute DB --env preview --file=./backups/preview-export.sql --remote",
+		"db:preview:clear": "tsx scripts/clear-all-tables.ts --env preview --remote",
+		"db:preview:studio": "npx drizzle-kit studio --config=drizzle.preview.config.ts",
+
+		"db:remote:push": "wrangler d1 migrations apply treasure-cave --env production --remote",
+		"db:remote:check": "wrangler d1 execute DB --env production --command=\"SELECT name FROM sqlite_master WHERE type='table'\" --remote",
+		"db:remote:export": "wrangler d1 export DB --env production --output=./backups/remote-export.sql --remote",
+		"db:remote:import": "wrangler d1 execute DB --env production --file=./backups/remote-export.sql --remote",
+		"db:remote:clear": "tsx scripts/clear-all-tables.ts --env production --remote",
 		"db:remote:studio": "npx drizzle-kit studio --config=drizzle.config.ts",
 		"db:remote:backup": "wrangler d1 time-travel info treasure-cave > ./backups/remote-%date:~0,4%%date:~5,2%%date:~8,2%-%time:~0,2%%time:~3,2%%time:~6,2%.bookmark",
 		"db:remote:restore": "powershell -Command \"$file = Get-ChildItem ./backups/remote-*.bookmark | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($file) { $content = Get-Content $file; $match = $content | Select-String -Pattern 'The current bookmark is ''([^'']*)'''; if ($match) { $bookmark = $match.Matches.Groups[1].Value; Write-Host 'Found bookmark:' $bookmark; wrangler d1 time-travel restore treasure-cave --bookmark=$bookmark } else { Write-Host 'No bookmark found in file' } } else { Write-Host 'No backup file found' }\"",
 
 		"kv:list-namespaces": "npx wrangler kv namespace list",
+
+		"kv:local:set:version": "npx wrangler kv key put --preview false --local --binding=APP_KV app:version \"1.0.0\"",
+		"kv:local:set:config": "npx wrangler kv key put --preview false --local --binding=APP_KV app:config \"{\\\"name\\\":\\\"My Vue App\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"updated\\\":\\\"2024-05-13\\\"}\" --metadata=\"{\\\"contentType\\\":\\\"application/json\\\"}\"",
+		"kv:local:set:temp": "npx wrangler kv key put --preview false --local --binding=APP_KV temp \"临时值\" --ttl=3600",
+		"kv:local:list-keys": "npx wrangler kv key list --preview false --local --binding=APP_KV",
 
 		"kv:preview:set:version": "npx wrangler kv key put --preview --binding=APP_KV app:version \"1.0.0\"",
 		"kv:preview:set:config": "npx wrangler kv key put --preview --binding=APP_KV app:config \"{\\\"name\\\":\\\"My Vue App\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"updated\\\":\\\"2024-05-13\\\"}\" --metadata=\"{\\\"contentType\\\":\\\"application/json\\\"}\"",
@@ -50,10 +62,6 @@
 		"kv:deployset:temp": "npx wrangler kv key put --preview false --remote --binding=APP_KV temp \"临时值\" --ttl=3600",
 		"kv:deploy:list-keys": "npx wrangler kv key list --preview false --remote --binding=APP_KV",
 
-		"kv:local:set:version": "npx wrangler kv key put --preview false --local --binding=APP_KV app:version \"1.0.0\"",
-		"kv:local:set:config": "npx wrangler kv key put --preview false --local --binding=APP_KV app:config \"{\\\"name\\\":\\\"My Vue App\\\",\\\"version\\\":\\\"1.0.0\\\",\\\"updated\\\":\\\"2024-05-13\\\"}\" --metadata=\"{\\\"contentType\\\":\\\"application/json\\\"}\"",
-		"kv:local:set:temp": "npx wrangler kv key put --preview false --local --binding=APP_KV temp \"临时值\" --ttl=3600",
-		"kv:local:list-keys": "npx wrangler kv key list --preview false --local --binding=APP_KV",
 
 		"r2:create-bucket": "npx wrangler r2 bucket create app-files",
 		"r2:create-preview-bucket": "npx wrangler r2 bucket create app-files-dev",

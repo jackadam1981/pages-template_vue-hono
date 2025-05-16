@@ -2,7 +2,7 @@ import { defineConfig } from 'drizzle-kit';
 import { resolve } from 'path';
 
 // 本地SQLite数据库路径
-const dbPath = resolve('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/cb94b0c3c7e1fca652466153da6bc0f3222f5becdf3c680776c696735afe69cd.sqlite');
+const dbPath = resolve('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/40347cc217fa441ffa565078cfb9bcd0c3c2f2dac3d2df73ceaf24617a0151ac.sqlite');
 
 export default defineConfig({
   out: './drizzle',

@@ -555,10 +555,10 @@ app.put('/files/:key', async (c) => {
     });
   } catch (error) {
     console.error('上传R2对象失败:', error);
-    return c.json({
+  return c.json({
       success: false,
       error: error instanceof Error ? error.message : '上传R2对象失败',
-      timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString()
     }, 500);
   }
 });
