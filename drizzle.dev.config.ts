@@ -1,8 +1,13 @@
 import { defineConfig } from 'drizzle-kit';
 import { resolve } from 'path';
 
+/**
+ * 开发环境(dev)的Drizzle配置
+ * 用于Studio可视化和连接本地SQLite数据库
+ */
+
 // 本地SQLite数据库路径
-const dbPath = resolve('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/40347cc217fa441ffa565078cfb9bcd0c3c2f2dac3d2df73ceaf24617a0151ac.sqlite');
+const dbPath = resolve('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/a5f941247461102aaa24df43ff942b8f4d977d2f3ce9996b1c87319c8c4e6e5f.sqlite');
 
 export default defineConfig({
   out: './drizzle',

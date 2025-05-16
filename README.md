@@ -2,7 +2,7 @@
 
 这是一个使用 Vue.js 作为前端，Cloudflare Pages 作为托管平台的应用模板。
 
-添加了D1 R2 KV存储的支持。
+集成了Cloudflare的三大核心服务：D1（数据库）、KV（键值存储）和R2（对象存储）。
 
 ## 特性
 
@@ -13,6 +13,25 @@
 - Cloudflare R2 (文件和对象存储) 存储图片，文件
 - Hono.js 作为 API 框架
 - Drizzle ORM 用于数据库交互
+
+## 环境配置
+
+项目配置了三个标准化环境：
+
+- **开发环境** (`dev`): 本地开发，使用本地模拟的 D1/KV/R2 服务
+- **预览环境** (`preview`): 部署到 Cloudflare，用于测试和预发布
+- **生产环境** (`prod`): 生产环境部署
+
+环境配置位于 `wrangler.toml` 文件中，按环境区分。
+
+## 命令结构
+
+所有命令遵循统一格式：`{资源}:{环境}:{操作}`
+
+例如：
+- `db:dev:push` - 将数据库迁移推送到开发环境
+- `kv:preview:list` - 列出预览环境的所有KV键
+- `r2:prod:create` - 创建生产环境的R2存储桶
 
 ## 开发说明
 
@@ -42,69 +61,173 @@ npm install
 npm run dev
 ```
 
-## 数据库配置
+## 数据库操作 (D1)
 
-本项目使用 Cloudflare D1 数据库，在本地开发环境下可以使用 SQLite 作为替代。
-
-### 数据库迁移
-
-1. 生成迁移文件
+### 数据库迁移和管理
 
 ```bash
+# 生成迁移文件（对所有环境通用）
 npm run db:generate
+
+# 应用迁移到各环境
+npm run db:dev:push     # 开发环境
+npm run db:preview:push # 预览环境
+npm run db:prod:push    # 生产环境
+
+# 检查各环境的数据库表
+npm run db:dev:check     # 开发环境
+npm run db:preview:check # 预览环境
+npm run db:prod:check    # 生产环境
+
+# 清空各环境的数据库表
+npm run db:dev:clear     # 开发环境
+npm run db:preview:clear # 预览环境
+npm run db:prod:clear    # 生产环境
+
+# 导出/导入数据库
+npm run db:dev:export     # 导出开发环境数据库
+npm run db:dev:import     # 导入开发环境数据库
+npm run db:preview:export # 导出预览环境数据库
+npm run db:preview:import # 导入预览环境数据库
+npm run db:prod:export    # 导出生产环境数据库
+npm run db:prod:import    # 导入生产环境数据库
+
+# 使用Drizzle Studio查看各环境数据库
+npm run db:dev:studio     # 查看开发环境数据库
+npm run db:preview:studio # 查看预览环境数据库
+npm run db:prod:studio    # 查看生产环境数据库
+
+# 备份和恢复生产数据库(使用时间旅行)
+npm run db:prod:backup    # 创建生产数据库备份点
+npm run db:prod:restore   # 恢复最近的生产数据库备份点
 ```
 
-2. 应用迁移到本地数据库
+## KV存储操作
 
 ```bash
-npm run db:migrate:local
+# 列出所有KV命名空间
+npm run kv:list
+
+# 设置KV值（以版本号为例）
+npm run kv:dev:set:version     # 开发环境
+npm run kv:preview:set:version # 预览环境
+npm run kv:prod:set:version    # 生产环境
+
+# 设置JSON配置
+npm run kv:dev:set:config     # 开发环境
+npm run kv:preview:set:config # 预览环境
+npm run kv:prod:set:config    # 生产环境
+
+# 设置临时值(带TTL)
+npm run kv:dev:set:temp     # 开发环境
+npm run kv:preview:set:temp # 预览环境
+npm run kv:prod:set:temp    # 生产环境
+
+# 列出所有键
+npm run kv:dev:list     # 开发环境
+npm run kv:preview:list # 预览环境
+npm run kv:prod:list    # 生产环境
 ```
 
-3. 填充测试数据
+## R2对象存储操作
 
 ```bash
-npm run db:seed
+# 列出所有存储桶
+npm run r2:list
+
+# 创建存储桶
+npm run r2:dev:create     # 创建开发环境存储桶 (app-files-dev)
+npm run r2:preview:create # 创建预览环境存储桶 (app-files-preview)
+npm run r2:prod:create    # 创建生产环境存储桶 (app-files-prod)
+
+# 查看存储桶信息
+npm run r2:dev:info     # 开发环境存储桶信息
+npm run r2:preview:info # 预览环境存储桶信息
+npm run r2:prod:info    # 生产环境存储桶信息
+
+# 删除存储桶
+npm run r2:dev:delete     # 删除开发环境存储桶
+npm run r2:preview:delete # 删除预览环境存储桶
+npm run r2:prod:delete    # 删除生产环境存储桶
+
+# 测试R2功能
+npm run r2:dev:test       # 测试开发环境R2上传
+npm run r2:dev:download   # 测试开发环境R2下载
 ```
-
-4. 一步完成设置（生成、迁移、填充）
-
-```bash
-npm run db:setup
-```
-
-### 部署到 Cloudflare D1
-
-1. 创建 D1 数据库（仅需执行一次）
-
-```bash
-wrangler d1 create my-database
-```
-
-2. 将数据库 ID 更新到 `wrangler.toml` 文件中
-3. 应用迁移到 D1 数据库
-
-```bash
-npm run db:push:d1
-```
-
-## API 说明
-
-系统包含以下 API 端点：
-
-- `/api` - API 信息
-- `/api/hello` - 测试接口
-- `/api/env` - 环境信息
-- `/api/config` - 系统配置
-- `/api/tables` - 数据库表列表
-- `/api/tables/:tableName/data` - 指定表的数据
 
 ## 部署
 
 ```bash
-npm run deploy
+# 构建
+npm run build
+
+# 部署到预览环境
+wrangler pages deploy ./dist --env preview
+
+# 部署到生产环境
+wrangler pages deploy ./dist --env prod
 ```
 
-这将构建前端应用并部署到 Cloudflare Pages。
+## Cloudflare Pages 部署设置
+
+### 绑定服务资源
+
+在 Cloudflare Dashboard 中，你需要为你的 Pages 项目绑定 D1、KV 和 R2 资源，确保应用能访问这些服务。
+
+1. **登录 Cloudflare Dashboard**：
+   - 访问 https://dash.cloudflare.com/
+   - 选择你的账户和项目
+
+2. **设置 Pages 项目**：
+   - 导航到 `Pages` > 你的项目 > `Settings` > `Functions`
+   - 找到 `D1 database bindings`、`KV namespace bindings` 和 `R2 bucket bindings` 部分
+
+3. **设置 D1 数据库绑定**：
+   - 点击 `Add binding`
+   - 变量名：输入 `DB`（必须与 wrangler.toml 中的 binding 名称匹配）
+   - 选择对应环境的 D1 数据库：
+     - 预览环境: `treasure-cave-preview`
+     - 生产环境: `treasure-cave`
+   - 勾选对应环境: `Preview` 或/和 `Production`
+
+4. **设置 KV 命名空间绑定**：
+   - 点击 `Add binding`
+   - 变量名：输入 `APP_KV`（必须与 wrangler.toml 中的 binding 名称匹配）
+   - 选择你的 KV 命名空间
+   - 勾选对应环境: `Preview` 或/和 `Production`
+
+5. **设置 R2 存储桶绑定**：
+   - 点击 `Add binding`
+   - 变量名：输入 `APP_FILES`（必须与 wrangler.toml 中的 binding 名称匹配）
+   - 选择对应环境的 R2 存储桶：
+     - 预览环境: `app-files-preview`
+     - 生产环境: `app-files-prod`
+   - 勾选对应环境: `Preview` 或/和 `Production`
+
+### 环境变量设置
+
+除了服务绑定，你还可以设置环境变量来控制应用的行为：
+
+1. **导航到环境变量设置**：
+   - 在 Pages 项目中，前往 `Settings` > `Environment variables`
+
+2. **添加环境变量**：
+   - 点击 `Add variable`
+   - 设置关键变量，例如：
+     - `ENVIRONMENT`: 设置为 `preview` 或 `prod`
+     - 其他应用特定的配置变量
+
+3. **指定环境**：
+   - 你可以选择变量适用于 `Production`、`Preview` 或两者都是
+   - 这允许你在不同环境中使用不同的配置
+
+### 注意事项
+
+- **绑定名称必须匹配**：Dashboard 中的绑定变量名必须与 `wrangler.toml` 中配置的 `binding` 名称完全一致
+- **环境特定配置**：为预览和生产环境配置不同的资源
+- **部署后生效**：更改绑定或环境变量后，需要重新部署应用才能生效
+- **绑定优先级**：Dashboard 中的绑定会覆盖 `wrangler.toml` 中的同名绑定
+- **资源命名一致性**：确保资源名称与wrangler.toml中的配置一致，特别是存储桶名称
 
 ## 项目结构
 
@@ -121,97 +244,34 @@ npm run deploy
 │   ├── components/      # Vue 组件
 │   └── db/              # 数据库相关
 │       └── schema/      # 数据库模式定义
+├── backups/             # 数据库备份目录
 ├── wrangler.toml        # Cloudflare Wrangler 配置
+├── drizzle.config.ts    # 通用Drizzle配置（用于生成迁移）
+├── drizzle.dev.config.ts    # 开发环境Drizzle配置
+├── drizzle.preview.config.ts # 预览环境Drizzle配置
+├── drizzle.prod.config.ts    # 生产环境Drizzle配置
 └── package.json         # 项目配置
 ```
 
-## pages要求
+## 开发注意事项
 
-node:18.17.1
-npm:9.6.7
+1. **本地开发**：
+   - 使用命令 `npm run dev` 可以启动本地服务器
+   - 本地开发使用 `.wrangler/state` 目录下的模拟服务
+   - KV数据存储在 `.wrangler/state/kv` 目录
+   - D1数据库存储在 `.wrangler/state/d1` 目录
+   - R2对象存储在 `.wrangler/state/r2` 目录
 
-npm install hono --save-dev
+2. **部署流程**：
+   - 预览环境：`wrangler pages deploy ./dist --env preview`
+   - 生产环境：`wrangler pages deploy ./dist --env prod`
 
-## Customize configuration
+3. **配置说明**：
+   - 环境配置位于 `wrangler.toml`
+   - 确保各环境的资源ID配置正确
+   - 所有命令遵循 `{资源}:{环境}:{操作}` 格式
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## 环境要求
 
-## Project Setup
-
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-https://developers.cloudflare.com/pages/framework-guides/deploy-a-vue-site/
-
-npm create cloudflare@latest -- my-vue-app --framework=vue --platform=pages
-
-git config --global user.email "jackadam1981@hotmail.com"
-git config --global user.name "jack"
-
-echo "# pages-template_vue-hono" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/jackadam1981/pages-template_vue-hono.git
-git push -u origin main
-
-Download and install the latest Microsoft Visual C++ Redistributable package. You can get it from the official Microsoft website:
-Visit: https://aka.ms/vs/17/release/vc_redist.x64.exe
-This will download the latest Visual C++ Redistributable for x64 systems
-
-本地开发：
-开发者复制 wrangler.example.toml 为 wrangler.toml
-填入本地开发用的数据库 ID
-使用 wrangler dev 进行本地开发
-生产部署：
-在 Cloudflare Dashboard 的 Pages 设置中配置数据库绑定
-使用 wrangler pages deploy 部署
-生产环境的数据库 ID 完全通过 Dashboard 管理
-
-.dev.vars 文件与 .env 文件略有不同:
-.dev.vars - 这是 Cloudflare Wrangler 使用的本地开发环境变量文件，专门用于 Wrangler 的本地开发服务器。当您运行 wrangler dev 或 wrangler pages dev 命令时，Wrangler 会读取这个文件中的环境变量。
-.env - 这是一个更通用的环境变量文件，被 dotenv 库读取，用于 Node.js 应用程序。您的 drizzle.config.ts 文件导入了 dotenv/config，所以它会从这个文件中读取变量。
-您在不同情况下需要两个文件:
-当您使用 Drizzle Kit 工具（如 drizzle-kit studio）时，它会读取 .env 文件
-当您使用 Wrangler 命令（如 wrangler pages dev）时，它会读取 .dev.vars 文件
-所以两个文件都有各自的用途，取决于您使用的工具。建议您保留 .dev.vars 文件，并根据需要更新其中的内容。
-
-KV说明
-
-"kv:list-namespaces"  列出所有 云端 KV命名空间
-
-当您运行 wrangler pages dev 或 wrangler dev 命令时：
-自动使用 预览环境 (--preview):
-
-对于KV命令，实际上有三个不同的操作环境：
-本地环境 (--local):
-在本地.wrangler/state目录中操作数据
-用于本地开发和测试
-命令: kv:local:*
-预览环境 (--preview):
-使用预览KV命名空间ID (preview_id)
-在Cloudflare云端，但为开发用途保留
-命令: kv:preview:*
-生产环境 (--preview false --remote):
-使用生产KV命名空间ID (id)
-Cloudflare云端的真正生产数据
-命令: kv:deployset:* 和 kv:deploy:*
-现在我已经添加了所有三种环境的命令，并使用了正确的标志组合：
-本地环境: --preview false --local --binding=APP_KV
-预览环境: --preview --binding=APP_KV
-生产环境: --preview false --remote --binding=APP_KV
-这样就可以明确区分所有操作环境，避免意外修改错误的数据。特别是生产环境命令现在添加了--remote标志，确保操作的是Cloudflare云端的KV存储，而不是本地实例。
+- Node.js 18.17.1
+- npm 9.6.7

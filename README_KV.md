@@ -1,308 +1,296 @@
-
 # Cloudflare KV 存储使用指南
 
-## 环境配置
+## 目录
 
-Cloudflare KV (Key-Value) 存储支持三种环境：本地开发环境(Local)、预览环境(Preview)和生产环境(Production)。
+- [环境概述](#环境概述)
+- [KV 命名空间创建](#kv-命名空间创建)
+- [环境配置](#环境配置)
+- [命令使用说明](#命令使用说明)
+- [高级功能](#高级功能)
+- [Dashboard 配置详解](#dashboard-配置详解)
+- [常见问题与解决方案](#常见问题与解决方案)
 
-### KV 命名空间创建
+## 环境概述
+
+本项目支持三种标准化环境的 KV (Key-Value) 存储操作：
+
+| 环境名称 | 环境标识 | 命令前缀  | 说明                                           |
+|----------|----------|-----------|------------------------------------------------|
+| 开发环境 | `dev`    | `kv:dev:` | 本地开发使用，数据存储在 `.wrangler/state` 目录 |
+| 预览环境 | `preview`| `kv:preview:` | 对应非主分支部署，用于测试                      |
+| 生产环境 | `prod`   | `kv:prod:` | 对应主分支部署，生产环境使用                    |
+
+## KV 命名空间创建
 
 在使用 KV 前，需要创建命名空间：
 
-**bash**
-
-复制
-
-下载
-
-```
+```bash
 # 创建 KV 命名空间
-npx wrangler kv:namespace create TREASURE_CAVE
+npx wrangler kv:namespace create APP_KV
 
 # 查看已创建的命名空间列表
+npm run kv:list
+# 或直接使用
 npx wrangler kv:namespace list
 ```
 
-创建后，您将获得类似这样的输出：
-
-复制
-
-下载
+创建后，您将获得类似这样的输出，请保存命名空间ID：
 
 ```
-✅ Successfully created KV namespace with id "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+✅ Successfully created namespace APP_KV
+Created namespace APP_KV with id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-### 环境配置
+## 环境配置
 
-在 `wrangler.toml` 文件中配置 KV 命名空间：
+项目使用 Cloudflare 的环境配置方式区分不同环境：
 
-**toml**
+1. **开发环境** - 使用 `--local --env dev` 标志，访问本地模拟的 KV 存储
+2. **预览环境** - 使用 `--env preview --remote` 标志，访问预览环境配置的 KV 存储
+3. **生产环境** - 使用 `--env prod --remote` 标志，访问生产环境配置的 KV 存储
 
-复制
+### wrangler.toml 配置示例
 
-下载
+```toml
+# 全局配置
+name = "my-vue-app"
+compatibility_date = "2024-05-16"
+main = "functions/api/[[path]].ts"
 
-```
-# 默认（开发）环境的KV配置
-[[kv_namespaces]]
-binding = "TREASURE_CAVE"  # 代码中使用的绑定名称
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 命名空间ID
-preview_id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"  # 预览环境命名空间ID
+# 开发环境配置 (dev)
+[env.dev]
+name = "my-vue-app-dev"
 
-# 预览环境
+# 开发环境 KV 命名空间
+[[env.dev.kv_namespaces]]
+binding = "APP_KV"
+id = "local-dev-kv"
+
+# 预览环境配置 (preview)
 [env.preview]
+name = "my-vue-app-preview"
+
+# 预览环境 KV 命名空间
 [[env.preview.kv_namespaces]]
-binding = "TREASURE_CAVE"
-id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+binding = "APP_KV"
+id = "d199c9dbbcbb45beaf78887d696573a6"
 
-# 生产环境
-[env.production]
-[[env.production.kv_namespaces]]
-binding = "TREASURE_CAVE"
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# 生产环境配置 (prod)
+[env.prod]
+name = "my-vue-app"
+
+# 生产环境 KV 命名空间
+[[env.prod.kv_namespaces]]
+binding = "APP_KV"
+id = "d199c9dbbcbb45beaf78887d696573a6"
 ```
 
-> **注意** ：建议为开发、预览和生产环境使用不同的命名空间，以避免数据冲突。
+> **最佳实践**：
+> - 为不同环境使用独立的KV命名空间，防止开发/测试影响生产数据
+> - 遵循统一的环境命名: dev, preview, prod
+> - 使用有意义的绑定名称，例如 `APP_KV` 或 `TREASURE_CAVE`
 
-## 基本操作命令
+## 命令使用说明
 
-### 本地开发环境
+### 管理键值对
 
-**bash**
+```bash
+# 列出所有键
+npm run kv:dev:list        # 开发环境
+npm run kv:preview:list    # 预览环境
+npm run kv:prod:list       # 生产环境
 
-复制
+# 设置简单值
+npm run kv:dev:set:version      # 开发环境设置版本号
+npm run kv:preview:set:version  # 预览环境设置版本号
+npm run kv:prod:set:version     # 生产环境设置版本号
 
-下载
+# 设置JSON配置
+npm run kv:dev:set:config      # 开发环境设置JSON配置
+npm run kv:preview:set:config  # 预览环境设置JSON配置
+npm run kv:prod:set:config     # 生产环境设置JSON配置
 
+# 设置临时值（带TTL）
+npm run kv:dev:set:temp      # 开发环境设置临时值
+npm run kv:preview:set:temp  # 预览环境设置临时值
+npm run kv:prod:set:temp     # 生产环境设置临时值
 ```
+
+### 直接使用 wrangler 命令
+
+#### 开发环境操作
+
+```bash
 # 列出本地KV命名空间中的所有键
-npx wrangler kv:key list --binding TREASURE_CAVE --local
+npx wrangler kv:key list --env dev --local --binding=APP_KV
 
 # 获取特定键的值
-npx wrangler kv:key get --binding TREASURE_CAVE "key-name" --local
+npx wrangler kv:key get --env dev --local --binding=APP_KV "app:version"
 
 # 设置键值对
-npx wrangler kv:key put --binding TREASURE_CAVE "key-name" "value" --local
+npx wrangler kv:key put --env dev --local --binding=APP_KV "app:version" "1.0.0"
 
 # 删除键
-npx wrangler kv:key delete --binding TREASURE_CAVE "key-name" --local
+npx wrangler kv:key delete --env dev --local --binding=APP_KV "app:version"
 ```
 
-### 预览环境
+#### 预览环境操作
 
-**bash**
-
-复制
-
-下载
-
-```
+```bash
 # 列出预览环境KV命名空间中的所有键
-npx wrangler kv:key list --binding TREASURE_CAVE --preview
+npx wrangler kv:key list --env preview --remote --binding=APP_KV
 
 # 获取特定键的值
-npx wrangler kv:key get --binding TREASURE_CAVE "key-name" --preview
+npx wrangler kv:key get --env preview --remote --binding=APP_KV "app:version"
 
 # 设置键值对
-npx wrangler kv:key put --binding TREASURE_CAVE "key-name" "value" --preview
+npx wrangler kv:key put --env preview --remote --binding=APP_KV "app:version" "1.0.0"
 
 # 删除键
-npx wrangler kv:key delete --binding TREASURE_CAVE "key-name" --preview
+npx wrangler kv:key delete --env preview --remote --binding=APP_KV "app:version"
 ```
 
-### 生产环境
+#### 生产环境操作
 
-**bash**
-
-复制
-
-下载
-
-```
+```bash
 # 列出生产环境KV命名空间中的所有键
-npx wrangler kv:key list --binding TREASURE_CAVE
+npx wrangler kv:key list --env prod --remote --binding=APP_KV
 
 # 获取特定键的值
-npx wrangler kv:key get --binding TREASURE_CAVE "key-name"
+npx wrangler kv:key get --env prod --remote --binding=APP_KV "app:version"
 
 # 设置键值对
-npx wrangler kv:key put --binding TREASURE_CAVE "key-name" "value"
+npx wrangler kv:key put --env prod --remote --binding=APP_KV "app:version" "1.0.0"
 
 # 删除键
-npx wrangler kv:key delete --binding TREASURE_CAVE "key-name"
+npx wrangler kv:key delete --env prod --remote --binding=APP_KV "app:version"
 ```
 
-## 批量操作
+## 高级功能
 
-### 导入数据
+### 设置元数据和TTL
 
-**bash**
+```bash
+# 设置带元数据的键值对
+npx wrangler kv:key put --env dev --local --binding=APP_KV "app:config" "{\"name\":\"My App\",\"version\":\"1.0.0\"}" --metadata="{\"contentType\":\"application/json\"}"
 
-复制
-
-下载
-
+# 设置带TTL的键值对（过期时间，以秒为单位）
+npx wrangler kv:key put --env dev --local --binding=APP_KV "temp:data" "临时数据" --ttl=3600
 ```
+
+### 批量操作
+
+#### 导入数据
+
+```bash
 # 从JSON文件批量导入键值对
-npx wrangler kv:bulk put --binding TREASURE_CAVE ./data.json
+npx wrangler kv:bulk put --env dev --local --binding=APP_KV ./data.json
 ```
 
 示例 `data.json` 文件格式：
 
-**json**
-
-复制
-
-下载
-
-```
+```json
 [
   {
-    "key": "key1",
-    "value": "value1"
+    "key": "app:setting:theme",
+    "value": "dark",
+    "metadata": {
+      "description": "UI theme preference",
+      "updated": "2023-05-20"
+    }
   },
   {
-    "key": "key2",
-    "value": "value2"
+    "key": "app:setting:lang",
+    "value": "zh-CN",
+    "metadata": {
+      "description": "Language preference"
+    }
   }
 ]
 ```
 
-### 导出数据
+#### 导出数据
 
-**bash**
-
-复制
-
-下载
-
-```
+```bash
 # 导出所有键值对到JSON文件
-npx wrangler kv:bulk get --binding TREASURE_CAVE > ./export.json
+npx wrangler kv:bulk get --env dev --local --binding=APP_KV > ./backups/kv-dev-export.json
 ```
 
-## 在Worker/Pages中使用KV
+## Dashboard 配置详解
 
-### TypeScript 类型定义
+在 Cloudflare Dashboard 中，需要为 Pages 项目绑定 KV 命名空间：
 
-**typescript**
+1. 登录 Cloudflare Dashboard
+2. 导航至 Pages > 你的项目 > Settings > Functions
+3. 找到 "KV namespace bindings" 部分
+4. 点击 "Add binding"
+5. 配置绑定参数：
+   - 变量名：`APP_KV`（必须与 wrangler.toml 中的 binding 名称匹配）
+   - 选择已创建的 KV 命名空间
+   - 选择适用的环境（Preview、Production 或两者）
 
-复制
+## 在代码中使用KV
 
-下载
+### 类型定义
 
-```
+```typescript
+// 在类型定义中声明KV命名空间
 interface Env {
-  TREASURE_CAVE: KVNamespace;
+  APP_KV: KVNamespace;
 }
 ```
 
-### 基本操作示例
+### 基本操作
 
-**typescript**
+```typescript
+// 获取值
+const version = await env.APP_KV.get('app:version');
 
-复制
+// 获取带元数据的值
+const { value, metadata } = await env.APP_KV.getWithMetadata('app:config');
 
-下载
+// 存储值
+await env.APP_KV.put('app:version', '1.1.0');
 
-```
-// 写入数据
-await env.TREASURE_CAVE.put("user:123", JSON.stringify({ name: "Alice", age: 30 }));
-
-// 读取数据
-const data = await env.TREASURE_CAVE.get("user:123");
-const user = data ? JSON.parse(data) : null;
-
-// 删除数据
-await env.TREASURE_CAVE.delete("user:123");
-
-// 列出所有键
-const keys = await env.TREASURE_CAVE.list();
-```
-
-### 高级选项
-
-**typescript**
-
-复制
-
-下载
-
-```
-// 带过期时间的写入 (60秒后过期)
-await env.TREASURE_CAVE.put("temp:session", "value", { expirationTtl: 60 });
-
-// 带特定时间点过期的写入 (在特定时间戳过期)
-await env.TREASURE_CAVE.put("temp:session", "value", { expiration: 1735689600 });
-
-// 带元数据的写入
-await env.TREASURE_CAVE.put("user:123", "value", { 
-  metadata: { createdBy: "admin", tags: ["vip"] }
+// 存储带元数据和TTL的值
+await env.APP_KV.put('app:config', JSON.stringify({ name: 'My App', version: '1.1.0' }), {
+  metadata: { contentType: 'application/json', updated: new Date().toISOString() },
+  expirationTtl: 86400 // 24小时
 });
 
-// 获取带元数据
-const { value, metadata } = await env.TREASURE_CAVE.getWithMetadata("user:123");
+// 删除值
+await env.APP_KV.delete('temp:data');
+
+// 列出所有键
+const keys = await env.APP_KV.list();
 ```
 
-## 最佳实践
+## 常见问题与解决方案
 
-1. **键命名规范** ：
+### 1. KV数据不同步
 
-* 使用命名空间前缀，如 `user:123`, `config:app`
-* 避免特殊字符，使用小写字母、数字和冒号/下划线
+**问题**: 本地设置的KV值在部署后不可见
 
-1. **值大小限制** ：
+**解决方案**:
+- 确认使用了正确的环境标识（dev/preview/prod）
+- 验证命名空间ID配置正确
+- 本地数据不会自动同步到远程，需要在远程环境重新设置
 
-* 单个值最大25MB
-* 单个命名空间总大小不超过1GB（免费计划）或更大（付费计划）
+### 2. 绑定错误
 
-1. **性能考虑** ：
+**问题**: 代码运行时出现找不到KV绑定的错误
 
-* KV是最终一致的，写入后可能不会立即在所有地理位置读取到
-* 对性能敏感的场景考虑使用缓存
+**解决方案**:
+- 确保wrangler.toml中的绑定名与代码中使用的名称一致
+- 检查Dashboard中的KV绑定设置
+- 确认环境参数正确（--env dev/preview/prod）
 
-1. **环境隔离** ：
+### 3. JSON值处理
 
-* 开发、预览和生产环境使用不同的命名空间
-* 使用 `wrangler.toml`环境配置管理不同环境的绑定
+**问题**: 存储或读取JSON数据时出现格式问题
 
-1. **数据备份** ：
-
-* 定期使用 `wrangler kv:bulk get`导出重要数据
-* 考虑实现自定义备份策略
-
-## 注意事项
-
-1. KV存储是最终一致的，写入后可能需要几秒钟才能在全球范围内可用
-2. 免费计划有操作速率限制（每天1000次写入，10000次读取）
-3. 生产环境操作前，先在预览环境测试
-4. 敏感数据应考虑加密后再存储
-5. 大型数据集应考虑分片存储
-
-## 调试技巧
-
-**bash**
-
-复制
-
-下载
-
-```
-# 查看操作日志
-npx wrangler kv:key get --binding TREASURE_CAVE "key-name" --verbose
-
-# 本地开发时查看KV存储文件位置
-ls -la .wrangler/state/v3/kv/
-```
-
-## 与D1数据库的对比
-
-| 特性         | KV 存储                       | D1 数据库                 |
-| ------------ | ----------------------------- | ------------------------- |
-| 数据模型     | 简单的键值对                  | 关系型数据库，支持SQL     |
-| 查询能力     | 只能按键查找                  | 支持复杂查询和连接        |
-| 一致性模型   | 最终一致                      | 强一致                    |
-| 最大数据大小 | 每个值25MB，命名空间1GB(免费) | 5GB(免费)                 |
-| 最佳使用场景 | 配置、会话、缓存、简单数据    | 需要复杂查询和关系的数据  |
-| 本地开发支持 | 支持，存储在.wrangler目录     | 支持，存储在.wrangler目录 |
+**解决方案**:
+- 存储时使用JSON.stringify()序列化
+- 读取时使用JSON.parse()反序列化
+- 使用--metadata添加content-type元数据
+- 使用getWithMetadata()读取带元数据的值

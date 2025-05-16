@@ -1,30 +1,19 @@
-import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
 
-// 注意：请创建.env文件并设置以下环境变量
-// CLOUDFLARE_ACCOUNT_ID=your_account_id
-// CLOUDFLARE_DATABASE_ID=your_database_id
-// CLOUDFLARE_D1_TOKEN=your_api_token
-
-// 如果环境变量不存在，则使用这些默认值（仅用于开发）
-const ACCOUNT_ID = '480d718004a1a';
-const DATABASE_ID = 'd94b1fc3-282e';
-const API_TOKEN = '_ta5TgKZCkvXVQy';
-
+/**
+ * 通用 Drizzle 配置文件
+ * 用于生成迁移文件
+ * 所有环境（开发、预览、生产）共用此配置生成迁移
+ */
 export default defineConfig({
+  // 迁移输出目录 - 所有环境共用
   out: './drizzle',
+  // 数据库模式定义目录
   schema: './src/db/schema',
+  // 使用 SQLite 数据库类型
   dialect: 'sqlite',
-  driver: 'd1-http',
-  dbCredentials: {
-    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || ACCOUNT_ID,
-    databaseId: process.env.PRODUCTION_DATABASE_ID || DATABASE_ID,
-    token: process.env.CLOUDFLARE_D1_TOKEN || API_TOKEN,
-  },
-  introspect: {
-    casing: "camel",
-  },
-  breakpoints: true,
+  // 不需要连接信息，因为这只是用于生成迁移文件
+  // 而不是执行查询
   verbose: true,
   strict: true,
-});
+}); 

@@ -1,15 +1,34 @@
 # Cloudflare D1 数据库使用指南
 
-## 环境配置
+## 目录
 
-本项目支持三种环境下的 D1 数据库操作：本地开发环境(Local)、预览环境(Preview)和生产环境(Production)。
+- [环境概述](#环境概述)
+- [D1 数据库创建](#d1-数据库创建)
+- [环境配置](#环境配置)
+- [Drizzle 配置文件](#drizzle-配置文件)
+- [命令使用说明](#命令使用说明)
+- [Dashboard 配置详解](#dashboard-配置详解)
+- [常见问题与解决方案](#常见问题与解决方案)
 
-### D1 数据库创建
+## 环境概述
+
+本项目支持三种标准化环境的 D1 数据库操作：
+
+| 环境名称 | 环境标识 | 命令前缀  | 说明                                           |
+|----------|----------|-----------|------------------------------------------------|
+| 开发环境 | `dev`    | `db:dev:` | 本地开发使用，数据存储在 `.wrangler/state` 目录 |
+| 预览环境 | `preview`| `db:preview:` | 对应非主分支部署，用于测试                      |
+| 生产环境 | `prod`   | `db:prod:` | 对应主分支部署，生产环境使用                    |
+
+## D1 数据库创建
 
 在使用 D1 数据库前，需要创建数据库实例：
 
 ```bash
-# 创建 D1 数据库
+# 创建 D1 数据库 (预览环境)
+npx wrangler d1 create treasure-cave-preview
+
+# 创建 D1 数据库 (生产环境)
 npx wrangler d1 create treasure-cave
 
 # 查看已创建的数据库列表
@@ -18,154 +37,117 @@ npm run db:list
 npx wrangler d1 list
 ```
 
-创建后，您将获得类似这样的输出：
+创建后，您将获得类似这样的输出，请保存数据库 ID：
 
 ```
 ✅ Successfully created DB 'treasure-cave'
 Created D1 database treasure-cave with id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-### 环境配置
+## 环境配置
 
 项目使用 Cloudflare 的环境配置方式区分不同环境：
 
-1. **本地环境** - 使用 `--local` 标志，访问本地模拟的 D1 数据库
-2. **预览环境** - 使用 `--env preview` 标志，访问预览环境配置的数据库
-3. **生产环境** - 使用 `--env production` 标志，访问生产环境配置的数据库
+1. **开发环境** - 使用 `--local --env dev` 标志，访问本地模拟的 D1 数据库
+2. **预览环境** - 使用 `--env preview --remote` 标志，访问预览环境配置的数据库
+3. **生产环境** - 使用 `--env prod --remote` 标志，访问生产环境配置的数据库
 
-在Cloudflare Pages控制台中，您需要为不同环境配置D1绑定：
-
-在 `wrangler.toml`文件中需要为不同环境配置 D1 数据库信息：
+### wrangler.toml 配置示例
 
 ```toml
-# 默认（开发）环境的D1数据库设置
-[[d1_databases]]
+# 全局配置
+name = "my-vue-app"
+compatibility_date = "2024-05-16"
+main = "functions/api/[[path]].ts"
+
+# 开发环境配置 (dev)
+[env.dev]
+name = "my-vue-app-dev"
+
+# 开发环境 D1 数据库
+[[env.dev.d1_databases]]
 binding = "DB"
-database_name = "treasure-cave"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+database_name = "treasure-cave-dev"
+database_id = "local-dev-d1"  # 开发环境可以使用任意占位符ID
 migrations_dir = "./drizzle"
 
-# 预览环境
+# 预览环境配置 (preview)
 [env.preview]
+name = "my-vue-app-preview"
+
+# 预览环境 D1 数据库
 [[env.preview.d1_databases]]
 binding = "DB"
-database_name = "treasure-cave"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+database_name = "treasure-cave-preview"
+database_id = "3b5dbac5-9a63-4c45-a53e-828c73a59360"  # 预览环境数据库ID
 migrations_dir = "./drizzle"
 
-# 生产环境
-[env.production]
-[[env.production.d1_databases]]
+# 生产环境配置 (prod)
+[env.prod]
+name = "my-vue-app"
+
+# 生产环境 D1 数据库
+[[env.prod.d1_databases]]
 binding = "DB"
 database_name = "treasure-cave"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+database_id = "d94b1fc3-282e-46dd-81b9-d779a1816597"  # 生产环境数据库ID
 migrations_dir = "./drizzle"
 ```
 
-> **说明**：以上配置中三个环境使用相同的数据库。如果需要为不同环境使用独立的数据库，只需创建不同的数据库并更新各环境的 `database_id`即可。local可以随意写database_id，preview和production使用远程云D1数据库，应创建两个D1数据库，并配置。
+> **最佳实践**：
+> - 为不同环境使用独立的数据库，防止开发/测试影响生产数据
+> - 遵循统一的环境命名: dev, preview, prod
+> - 保持数据库名称命名一致（开发环境: treasure-cave-dev, 预览环境: treasure-cave-preview, 生产环境: treasure-cave）
 
 ## Drizzle 配置文件
 
-不同环境使用不同的 Drizzle 配置文件：
+项目使用统一的 Drizzle 命名规则：
 
-- 本地环境: `drizzle.local.config.ts`
-- 预览环境: `drizzle.preview.config.ts`
-- 生产环境: `drizzle.config.ts`
+- 开发环境：`drizzle.dev.config.ts`
+- 预览环境：`drizzle.preview.config.ts`
+- 生产环境：`drizzle.prod.config.ts`
+- 通用迁移生成：`drizzle.config.ts`
 
-local需要配置本地数据库文件路径。
+### 配置文件说明
 
-由于使用D1 http api，所以需要配置账户ID 数据库ID D1权限token。
-
-使用.env来配置：
-
-  dbCredentials: {
-
-    accountId:process.env.CLOUDFLARE_ACCOUNT_ID||ACCOUNT_ID,
-
-    databaseId:process.env.CLOUDFLARE_DATABASE_ID||DATABASE_ID,
-
-    token:process.env.CLOUDFLARE_D1_TOKEN||API_TOKEN,
-
-  },
-
-## 命令使用说明
-
-### 环境与工具关系
-
-本项目使用两个主要工具操作 D1 数据库：
-
-1. **Wrangler** - Cloudflare 的官方命令行工具，用于管理 D1 数据库
-
-   - `--local` 标志：使用本地模拟的D1环境，而不依赖环境变量
-     - 本地数据库存储位置：`.wrangler/state/v3/d1/`
-   - `--preview` 标志：使用 `wrangler.toml` 中的环境变量配置预览环境
-     - 读取字段：`[vars]` 部分的变量和 `[[d1_databases]]` 部分的配置
-   - `--remote` 标志：使用 Cloudflare Pages 控制台配置的环境变量
-     - 读取字段：控制台中配置的环境变量和绑定的资源
-2. **Drizzle** - ORM 和数据库迁移工具
-
-   - 本地环境：使用 `drizzle.local.config.ts` 配置文件
-     - 关键字段：`driver`、`dbCredentials`、`schema`、`out`
-   - 预览环境：使用 `drizzle.preview.config.ts` 配置文件
-     - 关键字段：与本地环境相同，但连接到预览环境数据库
-   - 生产环境：使用 `drizzle.config.ts` 配置文件
-     - 关键字段：与本地环境相同，但连接到生产环境数据库
-
-各环境对应的配置源和主要配置：
-
-| 环境     | 命令标志      | 配置来源                   | Drizzle 配置文件              | 主要配置字段                                                            |
-| -------- | ------------- | -------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
-| 本地环境 | `--local`   | wrangler本地模拟           | `drizzle.local.config.ts`   | 不依赖环境变量，使用本地SQLite文件                                      |
-| 预览环境 | `--preview` | `wrangler.toml` 中的配置 | `drizzle.preview.config.ts` | `[[d1_databases]]` 的 `binding`, `database_name`, `database_id` |
-| 生产环境 | `--remote`  | Cloudflare Pages 控制台    | `drizzle.config.ts`         | Pages 控制台中的环境变量和 D1 绑定                                      |
-
-### 配置文件示例
-
-#### `.env` 或 `.dev.vars` 示例
-
-```
-D1_DATABASE_NAME=treasure-cave
-D1_DATABASE_ID=xxxxx-xxxx-xxxx-xxxx-xxxxxxxx
-```
-
-#### `wrangler.toml` 示例
-
-```toml
-name = "my-vue-app"
-
-# D1 数据库配置
-[[d1_databases]]
-binding = "DB"         # 代码中使用的数据库绑定名称
-database_name = "treasure-cave"
-database_id = "xxxxx-xxxx-xxxx-xxxx-xxxxxxxx"
-```
-
-#### `drizzle.local.config.ts` 示例
+#### 迁移生成配置 (`drizzle.config.ts`)
 
 ```typescript
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  schema: './src/db/schema.ts',
-  out: './migrations',
-  driver: 'better-sqlite',
-  dbCredentials: {
-    url: './.wrangler/state/v3/d1/miniflare-D1DatabaseObject/xxxx/db.sqlite',
-  },
+  // 迁移输出目录
+  out: './drizzle',
+  // 数据库模式定义目录
+  schema: './src/db/schema',
+  // 使用 SQLite 数据库类型
+  dialect: 'sqlite',
+  // 不需要连接信息，因为只用于生成迁移
+  verbose: true,
+  strict: true,
 });
 ```
 
-#### `drizzle.preview.config.ts` 示例
+#### 开发环境配置 (`drizzle.dev.config.ts`)
 
 ```typescript
 import { defineConfig } from 'drizzle-kit';
+import { resolve } from 'path';
+
+/**
+ * 开发环境(dev)的Drizzle配置
+ * 用于Studio可视化和连接本地SQLite数据库
+ */
+
+// 本地SQLite数据库路径
+const dbPath = resolve('.wrangler/state/v3/d1/miniflare-D1DatabaseObject/a5f941247461102aaa24df43ff942b8f4d977d2f3ce9996b1c87319c8c4e6e5f.sqlite');
 
 export default defineConfig({
+  out: './drizzle',
   schema: './src/db/schema',
-  out: './migrations',
-  dialect: 'sqlite', // 使用兼容的数据库类型
+  dialect: 'sqlite',
   dbCredentials: {
-    url: 'file:./preview-database.sqlite', // 使用SQLite文件作为预览环境
+    url: `file:${dbPath}`,
   },
   introspect: {
     casing: "camel",
@@ -176,180 +158,192 @@ export default defineConfig({
 });
 ```
 
-> **说明**：当前Drizzle Kit的配置使用SQLite作为预览环境数据库。这是因为Drizzle Kit目前对D1的直接支持有限，我们使用SQLite作为兼容方案。在实际应用中，预览环境的API调用仍然会连接到Cloudflare D1，但Drizzle Studio则通过SQLite文件查看数据库结构。
-
-#### `drizzle.config.ts` 示例
+#### 预览环境配置 (`drizzle.preview.config.ts`)
 
 ```typescript
+import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
 
+/**
+ * 预览环境(preview)的Drizzle配置
+ * 用于Studio可视化和连接预览环境远程D1数据库
+ */
+
 export default defineConfig({
-  schema: './src/db/schema.ts',
-  out: './migrations',
-  driver: 'd1',
+  out: './drizzle',
+  schema: './src/db/schema',
+  dialect: 'sqlite',
+  driver: 'd1-http',
   dbCredentials: {
-    wranglerConfigPath: './wrangler.toml',
-    dbName: 'DB',
-    remote: true, // 指定使用远程生产环境
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
+    databaseId: process.env.PREVIEW_DATABASE_ID!,
+    token: process.env.CLOUDFLARE_D1_TOKEN!,
   },
+  introspect: {
+    casing: "camel",
+  },
+  breakpoints: true,
+  verbose: true,
+  strict: true,
 });
 ```
 
-### Drizzle 配置说明
-
-对于 Drizzle Kit，需要在 `drizzle.preview.config.ts` 中配置以下环境变量才能连接到预览环境：
-
-```bash
-# .env 文件中需要添加（用于Drizzle工具连接D1）
-CLOUDFLARE_ACCOUNT_ID=your_account_id
-CLOUDFLARE_DATABASE_ID=your_database_id
-CLOUDFLARE_D1_TOKEN=your_api_token
-```
-
-您可以在 Cloudflare 仪表板中获取这些值：
-
-1. `CLOUDFLARE_ACCOUNT_ID` - 在 Cloudflare 仪表板右侧找到的账户ID
-2. `CLOUDFLARE_DATABASE_ID` - 创建 D1 数据库后得到的数据库ID
-3. `CLOUDFLARE_D1_TOKEN` - 从 Cloudflare 仪表板的 "API Tokens" 中创建，需要有 D1 的读写权限
-
-这些凭据仅用于 Drizzle Kit 工具（如 `drizzle-kit studio`）通过 HTTP API 连接到 D1 数据库。在实际应用部署中，应用程序会通过 Cloudflare 的内部绑定自动连接。
-
-### 本地环境 (Local)
-
-```bash
-# 应用数据库迁移
-# 将 Drizzle 生成的迁移应用到本地 D1 数据库
-npm run db:local:push
-# 完整命令: wrangler d1 migrations apply treasure-cave --local
-
-# 检查数据库表
-# 执行 SQL 查询检查本地数据库中的表
-npm run db:local:check
-# 完整命令: wrangler d1 execute DB --local --command="SELECT name FROM sqlite_master WHERE type='table'"
-
-# 导出数据库到SQL文件
-# 将本地数据库导出到 SQL 文件以备份
-npm run db:local:export
-# 完整命令: wrangler d1 export DB --local --output=./backups/local-export.sql
-
-# 清空所有表
-# 使用脚本清空本地数据库中的所有表
-npm run db:local:clear
-# 完整命令: tsx scripts/clear-all-tables.ts
-
-# 从SQL文件导入数据
-# 从 SQL 文件恢复数据到本地数据库
-npm run db:local:import
-# 完整命令: wrangler d1 execute DB --local --file=./backups/local-export.sql
-
-# 启动Drizzle Studio查看/管理数据
-# 启动 Drizzle Studio 图形界面管理本地数据库
-npm run db:local:studio
-# 完整命令: npx drizzle-kit studio --config=drizzle.local.config.ts
-```
-
-### 预览环境 (Preview)
-
-```bash
-# 应用数据库迁移
-# 将 Drizzle 生成的迁移应用到预览环境 D1 数据库
-npm run db:preview:push
-# 完整命令: wrangler d1 migrations apply treasure-cave --env preview
-
-# 检查数据库表
-# 执行 SQL 查询检查预览环境数据库中的表
-npm run db:preview:check
-# 完整命令: wrangler d1 execute DB --env preview --command="SELECT name FROM sqlite_master WHERE type='table'"
-
-# 导出数据库到SQL文件
-# 将预览环境数据库导出到 SQL 文件以备份
-npm run db:preview:export
-# 完整命令: wrangler d1 export DB --env preview --output=./backups/preview-export.sql
-
-# 清空所有表
-# 使用脚本清空预览环境数据库中的所有表
-npm run db:preview:clear
-# 完整命令: tsx scripts/clear-all-tables.ts --env preview
-
-# 从SQL文件导入数据
-# 从 SQL 文件恢复数据到预览环境数据库
-npm run db:preview:import
-# 完整命令: wrangler d1 execute DB --env preview --file=./backups/preview-export.sql
-
-# 启动Drizzle Studio查看/管理数据
-# 启动 Drizzle Studio 图形界面管理预览环境数据库
-npm run db:preview:studio
-# 完整命令: npx drizzle-kit studio --config=drizzle.preview.config.ts
-```
-
-### 生产环境 (Production)
-
-```bash
-# 应用数据库迁移
-# 将 Drizzle 生成的迁移应用到生产环境 D1 数据库
-npm run db:remote:push
-# 完整命令: wrangler d1 migrations apply treasure-cave --env production
-
-# 检查数据库表
-# 执行 SQL 查询检查生产环境数据库中的表
-npm run db:remote:check
-# 完整命令: wrangler d1 execute DB --env production --command="SELECT name FROM sqlite_master WHERE type='table'"
-
-# 导出数据库到SQL文件
-# 将生产环境数据库导出到 SQL 文件以备份
-npm run db:remote:export
-# 完整命令: wrangler d1 export DB --env production --output=./backups/remote-export.sql
-
-# 清空所有表
-# 使用脚本清空生产环境数据库中的所有表
-npm run db:remote:clear
-# 完整命令: tsx scripts/clear-all-tables.ts --env production
-
-# 从SQL文件导入数据
-# 从 SQL 文件恢复数据到生产环境数据库
-npm run db:remote:import
-# 完整命令: wrangler d1 execute DB --env production --file=./backups/remote-export.sql
-
-# 启动Drizzle Studio查看/管理数据
-# 启动 Drizzle Studio 图形界面管理生产环境数据库
-npm run db:remote:studio
-# 完整命令: npx drizzle-kit studio --config=drizzle.config.ts
-
-# 备份数据库(创建时间点恢复书签)
-# 创建数据库时间点恢复书签，便于之后恢复
-npm run db:remote:backup
-# 完整命令: wrangler d1 time-travel info treasure-cave > ./backups/remote-[timestamp].bookmark
-
-# 恢复最近的备份
-# 使用最近的书签恢复数据库到之前的状态
-npm run db:remote:restore
-# 完整命令: PowerShell 脚本查找最新备份并执行 wrangler d1 time-travel restore 命令
-```
-
-## 环境切换
-
-在 `db.config.ts` 文件中，系统会根据环境变量自动检测当前环境:
+#### 生产环境配置 (`drizzle.prod.config.ts`)
 
 ```typescript
-// 环境检测逻辑
-export const ENV = {
-  isDev: process.env.NODE_ENV === 'development',
-  isPreview: process.env.CF_PAGES_BRANCH !== 'main' && process.env.CF_PAGES_BRANCH !== undefined,
-  isProd: process.env.CF_PAGES_BRANCH === 'main',
-};
+import 'dotenv/config';
+import { defineConfig } from 'drizzle-kit';
+
+/**
+ * 生产环境(prod)的Drizzle配置
+ * 用于Studio可视化和连接生产环境远程D1数据库
+ */
+
+export default defineConfig({
+  out: './drizzle',
+  schema: './src/db/schema',
+  dialect: 'sqlite',
+  driver: 'd1-http',
+  dbCredentials: {
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
+    databaseId: process.env.PRODUCTION_DATABASE_ID!,
+    token: process.env.CLOUDFLARE_D1_TOKEN!,
+  },
+  introspect: {
+    casing: "camel",
+  },
+  breakpoints: true,
+  verbose: true,
+  strict: true,
+});
 ```
 
-## 注意事项
+### 环境变量配置 (.env 文件)
 
-1. 确保在使用前已创建 D1 数据库: `npx wrangler d1 create treasure-cave`
-2. 首次使用前需要应用迁移:
-   - 本地环境: `npm run db:local:push`
-   - 预览环境: `npm run db:preview:push`
-   - 生产环境: `npm run db:remote:push`
-3. 环境区分:
-   - 本地环境: 使用 `--local` 标志
-   - 预览环境: 使用 `--env preview` 标志
-   - 生产环境: 使用 `--env production` 标志
-4. 预览环境对应于非主分支的部署，生产环境对应于主分支(main)的部署
-5. Drizzle Studio 需要配置相应的环境变量才能连接到远程数据库
-6. 需要在 wrangler.toml 文件中正确配置每个环境的数据库设置
+```
+# Cloudflare 账户信息
+CLOUDFLARE_ACCOUNT_ID=480d718004a1a3ca022cbd36a0033aab
+CLOUDFLARE_D1_TOKEN=_ta5TgKZCkvXVQybYKjcLsAlyb4gpi4kkIQwp056
+
+# 预览数据库ID
+PREVIEW_DATABASE_ID=3b5dbac5-9a63-4c45-a53e-828c73a59360
+
+# 生产数据库ID
+PRODUCTION_DATABASE_ID=d94b1fc3-282e-46dd-81b9-d779a1816597
+```
+
+> **注意**：环境变量仅用于 Drizzle Studio 访问远程数据库。在实际部署中，应用会通过 Cloudflare 的内部绑定自动连接。
+
+## 命令使用说明
+
+### 数据库迁移
+
+```bash
+# 生成迁移文件（对所有环境通用）
+npm run db:generate
+
+# 应用迁移到各环境
+npm run db:dev:push     # 开发环境 (使用 --local --env dev)
+npm run db:preview:push # 预览环境 (使用 --env preview --remote)
+npm run db:prod:push    # 生产环境 (使用 --env prod --remote)
+```
+
+### 数据库管理
+
+```bash
+# 检查各环境的数据库表
+npm run db:dev:check     # 开发环境
+npm run db:preview:check # 预览环境
+npm run db:prod:check    # 生产环境
+
+# 清空各环境的数据库表
+npm run db:dev:clear     # 开发环境
+npm run db:preview:clear # 预览环境
+npm run db:prod:clear    # 生产环境
+
+# 导出/导入数据库
+npm run db:dev:export     # 导出开发环境数据库
+npm run db:preview:export # 导出预览环境数据库
+npm run db:prod:export    # 导出生产环境数据库
+npm run db:dev:import     # 导入开发环境数据库
+npm run db:preview:import # 导入预览环境数据库
+npm run db:prod:import    # 导入生产环境数据库
+
+# 使用Drizzle Studio查看各环境数据库
+npm run db:dev:studio     # 查看开发环境数据库
+npm run db:preview:studio # 查看预览环境数据库
+npm run db:prod:studio    # 查看生产环境数据库
+
+# 备份和恢复生产数据库
+npm run db:prod:backup    # 创建生产数据库备份点
+npm run db:prod:restore   # 恢复最近的生产数据库备份点
+```
+
+## Dashboard 配置详解
+
+在 Cloudflare Dashboard 中，需要为 Pages 项目绑定 D1 数据库：
+
+1. 登录 Cloudflare Dashboard
+2. 导航至 Pages > 你的项目 > Settings > Functions
+3. 找到 "D1 database bindings" 部分
+4. 点击 "Add binding"
+5. 配置绑定参数：
+   - 变量名：`DB`（必须与 wrangler.toml 中的 binding 名称匹配）
+   - 选择对应环境的 D1 数据库
+     - Preview环境使用 `treasure-cave-preview` 
+     - Production环境使用 `treasure-cave`
+   - 选择适用的环境（Preview、Production 或两者）
+
+> **注意**：Dashboard 中的绑定会覆盖 wrangler.toml 中的配置。
+
+## 常见问题与解决方案
+
+### 1. 权限问题
+
+**问题**: 执行远程数据库操作时出现 `not authorized` 或 `permission denied` 错误
+
+**解决方案**:
+- 确保已登录 `wrangler login`
+- 检查账户权限
+- 确认数据库ID是否正确
+
+### 2. 找不到本地数据库
+
+**问题**: 执行本地数据库操作时提示找不到数据库文件
+
+**解决方案**:
+- 检查 `.wrangler/state` 目录是否存在 
+- 先尝试执行 `wrangler dev` 启动本地环境
+- 使用 `--persist` 选项确保数据持久化
+
+### 3. 迁移失败
+
+**问题**: 应用迁移时失败
+
+**解决方案**:
+- 确认环境参数正确 (--env dev/preview/prod)
+- 检查 migrations_dir 路径配置是否正确
+- 确保迁移文件格式符合要求
+
+### 4. 数据库ID不匹配
+
+**问题**: 配置的数据库ID与实际不符
+
+**解决方案**:
+- 使用 `npm run db:list` 查看实际的数据库ID
+- 更新 wrangler.toml 中的对应 database_id
+- 检查是否将测试环境ID错误地用于生产环境
+
+### 5. 本地开发时绑定名不匹配
+
+**问题**: 代码中引用的绑定名与配置不一致
+
+**解决方案**:
+- 确保代码中使用的绑定名与 wrangler.toml 中的 binding 名称一致
+- 默认绑定名为 `DB`，如果修改需同步更新所有引用
+
+## 参考资源
+
+- [Cloudflare D1 官方文档](https://developers.cloudflare.com/d1/)
+- [Drizzle ORM 文档](https://orm.drizzle.team/)
+- [Wrangler 命令行工具](https://developers.cloudflare.com/workers/wrangler/)
